@@ -1,4 +1,19 @@
 class User < ApplicationRecord
+  has_many :created_courses, class_name: Course.name,
+foreign_key: "created_by_id", dependent: :nullify
+  has_many :created_lessons, class_name: Lesson.name,
+foreign_key: "created_by_id", dependent: :nullify
+  has_many :user_courses, dependent: :destroy
+  has_many :enrolled_courses, through: :user_courses, source: :course
+  has_many :user_lessons, dependent: :destroy
+  has_many :lessons, through: :user_lessons
+  has_many :admin_course_managers, dependent: :destroy
+  has_many :managed_courses, through: :admin_course_managers, source: :course
+  has_many :user_words, dependent: :destroy
+  has_many :test_results, dependent: :destroy
+
+  has_one_attached :avatar
+
   attr_accessor :remember_token
 
   has_secure_password
@@ -10,7 +25,8 @@ class User < ApplicationRecord
     password_confirmation birthday gender
   ).freeze
 
-  enum gender: {female: 0, male: 1, other: 2}
+  enum gender: {male: 0, female: 1, other: 2}
+  enum role: {user: 0, admin: 1}
 
   validates :name,
             presence: true,
@@ -20,8 +36,9 @@ class User < ApplicationRecord
             length: {maximum: Settings.user.max_email_length},
             format: {with: VALID_EMAIL_REGEX},
             uniqueness: {case_sensitive: false}
-  validates :birthday, presence: true
-  validates :gender, presence: true
+  validates :birthday, presence: true, unless: :oauth_user?
+  validates :gender, presence: true, unless: :oauth_user?
+  validates :uid, uniqueness: {scope: :provider}, allow_nil: true
 
   validate :birthday_within_100_years
 
@@ -53,6 +70,27 @@ class User < ApplicationRecord
 
   def forget
     update_column :remember_digest, nil
+  end
+
+  def self.find_or_create_from_auth_hash auth
+    user = find_by(email: auth.info.email)
+
+    if user
+      user.update(provider: auth.provider, uid: auth.uid) unless user.provider
+      user
+    else
+      create(
+        name: auth.info.name,
+        email: auth.info.email,
+        provider: auth.provider,
+        uid: auth.uid,
+        password: SecureRandom.hex(10)
+      )
+    end
+  end
+
+  def oauth_user?
+    provider.present? && uid.present?
   end
 
   private
