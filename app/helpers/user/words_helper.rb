@@ -16,18 +16,11 @@ module User::WordsHelper
   end
 
   def word_type_options
-    [
-      [t(".all_word_types"), :all],
-      [t(".word_types.noun"), :noun],
-      [t(".word_types.pronoun"), :pronoun],
-      [t(".word_types.verb"), :verb],
-      [t(".word_types.adjective"), :adjective],
-      [t(".word_types.adverb"), :adverb],
-      [t(".word_types.preposition"), :preposition],
-      [t(".word_types.conjunction"), :conjunction],
-      [t(".word_types.interjection"), :interjection],
-      [t(".word_types.other"), :other]
-    ]
+    options = Word.word_types.map do |key, value|
+      [I18n.t("user.words.filter.word_types.#{key}"), value]
+    end
+
+    options.unshift([I18n.t("user.words.filter.all_word_types"), ""])
   end
 
   def sort_options
